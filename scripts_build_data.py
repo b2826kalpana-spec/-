@@ -4,12 +4,16 @@ import json, urllib.request, re, sys
 
 ROOT=Path(__file__).resolve().parent
 DATA=ROOT/'data'; TERR=DATA/'territories'; DATA.mkdir(exist_ok=True); TERR.mkdir(exist_ok=True)
-UA='GlobalAtlasBuilder/1.1 (+https://github.com/)'
+UA='GlobalAtlasBuilder/1.2 (+https://github.com/)'
 
 def get_json(url):
-    req=urllib.request.Request(url,headers={'User-Agent':UA})
+    req=urllib.request.Request(url,headers={'User-Agent':UA,'Accept':'application/json'})
     with urllib.request.urlopen(req,timeout=90) as r:
-        return json.load(r)
+        raw=r.read()
+    try:
+        return json.loads(raw.decode('utf-8'))
+    except Exception as exc:
+        raise RuntimeError(f'Expected JSON from {url}, got {raw[:120]!r}') from exc
 
 def compact(obj): return json.dumps(obj,separators=(',',':'),ensure_ascii=False)
 
@@ -36,9 +40,12 @@ from babel.numbers import get_currency_name,get_currency_symbol
 import pycountry
 ru=Locale('ru'); meta={}
 try:
-    countries=CountryInfo.all_countries()
-except TypeError:
-    countries=CountryInfo('Russia').all_countries()
+    countries=CountryInfo.all()
+except Exception:
+    from countryinfo import all_countries
+    countries={}
+    for c in all_countries():
+        d=c.info(); countries[(d.get('name') or '').lower()]=d
 for key,d in countries.items():
     iso=d.get('ISO') if isinstance(d.get('ISO'),dict) else {}
     a3=iso.get('alpha3'); a2=iso.get('alpha2')
@@ -63,7 +70,12 @@ for f in features:
         target['mapPopulation']=p.get('pop_est'); target['gdpMdEst']=p.get('gdp_md_est'); target['continent']=p.get('continent')
 (DATA/'country-meta.js').write_text('window.ATLAS_META='+compact(meta)+';\nwindow.ATLAS_ALIASES='+compact(aliases)+';',encoding='utf8')
 
-adm1_url='https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/UKR/ADM1/geoBoundaries-UKR-ADM1_simplified.geojson'
+# Resolve current geoBoundaries URL through the official API: GitHub stores these large files with LFS.
+meta_url='https://www.geoboundaries.org/api/current/gbOpen/UKR/ADM1/'
+adm_meta=get_json(meta_url)
+adm1_url=adm_meta.get('simplifiedGeometryGeoJSON') or adm_meta.get('gjDownloadURL')
+if not adm1_url:
+    raise RuntimeError('geoBoundaries API returned no GeoJSON download URL')
 adm1=get_json(adm1_url)
 wanted=[
     ('Крым',['crimea','krym']),
