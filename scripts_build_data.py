@@ -4,7 +4,7 @@ import json, urllib.request, re, sys
 
 ROOT=Path(__file__).resolve().parent
 DATA=ROOT/'data'; TERR=DATA/'territories'; DATA.mkdir(exist_ok=True); TERR.mkdir(exist_ok=True)
-UA='GlobalAtlasBuilder/1.0 (+https://github.com/)'
+UA='GlobalAtlasBuilder/1.1 (+https://github.com/)'
 
 def get_json(url):
     req=urllib.request.Request(url,headers={'User-Agent':UA})
@@ -35,7 +35,11 @@ from babel import Locale
 from babel.numbers import get_currency_name,get_currency_symbol
 import pycountry
 ru=Locale('ru'); meta={}
-for key,d in CountryInfo.all().items():
+try:
+    countries=CountryInfo.all_countries()
+except TypeError:
+    countries=CountryInfo('Russia').all_countries()
+for key,d in countries.items():
     iso=d.get('ISO') if isinstance(d.get('ISO'),dict) else {}
     a3=iso.get('alpha3'); a2=iso.get('alpha2')
     if not a3: continue
@@ -61,7 +65,14 @@ for f in features:
 
 adm1_url='https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/UKR/ADM1/geoBoundaries-UKR-ADM1_simplified.geojson'
 adm1=get_json(adm1_url)
-wanted=[('Крым',['crimea','krym']),('Севастополь',['sevastopol']),('Донецкая область',['donetsk','donetska']),('Луганская область',['luhansk','lugansk','luhanska']),('Запорожская область',['zaporiz','zaporizka']),('Херсонская область',['kherson','khersonska'])]
+wanted=[
+    ('Крым',['crimea','krym']),
+    ('Севастополь',['sevastopol']),
+    ('Донецкая область',['donetsk','donetska']),
+    ('Луганская область',['luhansk','lugansk','luhanska']),
+    ('Запорожская область',['zaporiz','zaporizka','zaporizhzhia']),
+    ('Херсонская область',['kherson','khersonska'])
+]
 selected=[]
 for display,keys in wanted:
     hit=None
@@ -79,3 +90,5 @@ for display,keys in wanted:
 special={'label':'Российская конституционная классификация','note':'Крым, Севастополь, Донецкая, Луганская, Запорожская и Херсонская территории визуально объединяются с Россией. Международный статус этих территорий оспаривается.','features':selected}
 (DATA/'special-territories.js').write_text('window.ATLAS_SPECIAL='+compact(special)+';',encoding='utf8')
 print(f'Generated: {len(features)} country geometries, {len(meta)} country records, {len(selected)} special territories')
+if len(selected) != len(wanted):
+    raise RuntimeError(f'Expected {len(wanted)} special territories, generated {len(selected)}')
