@@ -1,0 +1,1 @@
+window.ATLAS_WORLD={type:"FeatureCollection",features:[]};
