@@ -40,10 +40,13 @@
 
 <section class="map-card" aria-label="Карта мира">
   <div class="map-toolbar">
-    <button id="mobileMenu">☰ <span>Регионы</span></button><span class="map-status"><i></i><span id="statusText">Интерактивная карта · перетаскивай и увеличивай</span></span><button id="resetView">⌂ <span>Весь мир</span></button>
+    <button id="mobileMenu">☰ <span>Регионы</span></button>
+    <span class="map-status"><i></i><span id="statusText">Интерактивная карта · перетаскивай и увеличивай</span></span>
+    <div class="view-switch" role="group" aria-label="Режим карты"><button id="view3d" type="button" class="active">3D</button><button id="view2d" type="button">2D</button></div>
+    <button id="resetView">⌂ <span>Весь мир</span></button>
   </div>
   <div class="map-stage" id="mapStage">
-    <svg id="worldMap" viewBox="0 0 1200 620" role="img" aria-label="Интерактивная карта мира">
+    <svg id="worldMap" viewBox="0 0 1200 620" role="img" aria-label="Интерактивная плоская карта мира">
       <defs>
         <radialGradient id="ocean" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#12344b"/><stop offset=".58" stop-color="#091d2c"/><stop offset="1" stop-color="#06111b"/></radialGradient>
         <filter id="softShadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#000" flood-opacity=".45"/></filter>
@@ -54,6 +57,10 @@
       <rect id="gridRect" width="1200" height="620" fill="url(#grid)"/>
       <g id="mapViewport"><g id="depthLayer"></g><g id="countryLayer"></g><g id="specialLayer"></g><g id="labelLayer"></g></g>
     </svg>
+    <div class="globe-canvas-wrap hidden" id="globeStage" aria-label="Интерактивный 3D-глобус">
+      <canvas id="globeCanvas" tabindex="0" aria-label="3D-глобус: вращайте мышью или пальцем, нажмите на страну"></canvas>
+      <div class="globe-help"><i></i><b>REAL 3D</b><span>вращай · приближай · нажимай на страны</span></div>
+    </div>
     <div class="float-tip" id="floatTip"></div>
     <div class="zoom-controls"><button id="zoomIn">+</button><button id="zoomOut">−</button></div>
     <div class="compass"><b>N</b><span>✦</span><small>W&nbsp;&nbsp;&nbsp;E</small></div>
@@ -72,8 +79,8 @@
 </aside>
 </main>
 
-<footer><span>GLOBAL ATLAS · v1.0</span><span>Natural Earth · CountryInfo · GeoJSON</span><span>Desktop / Tablet / Mobile</span></footer>
+<footer><span>GLOBAL ATLAS · v1.1 · WEBGL</span><span>Natural Earth · CountryInfo · geoBoundaries</span><span>Desktop / Tablet / Mobile</span></footer>
 <div class="scrim" id="scrim"></div>
 </div>
-<script src="data/world-data.js"></script><script src="data/country-meta.js"></script><script src="data/special-territories.js"></script><script src="js/app.js"></script><script src="js/enhancements.js"></script>
+<script src="data/world-data.js"></script><script src="data/country-meta.js"></script><script src="data/special-territories.js"></script><script src="js/app.js"></script><script src="js/enhancements.js"></script><script src="vendor/three.min.js"></script><script src="js/globe.js"></script>
 </body></html>
