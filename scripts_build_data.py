@@ -35,7 +35,7 @@ from babel import Locale
 from babel.numbers import get_currency_name,get_currency_symbol
 import pycountry
 ru=Locale('ru'); meta={}
-for key,d in CountryInfo().all().items():
+for key,d in CountryInfo.all().items():
     iso=d.get('ISO') if isinstance(d.get('ISO'),dict) else {}
     a3=iso.get('alpha3'); a2=iso.get('alpha2')
     if not a3: continue
@@ -61,18 +61,18 @@ for f in features:
 
 adm1_url='https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/UKR/ADM1/geoBoundaries-UKR-ADM1_simplified.geojson'
 adm1=get_json(adm1_url)
-wanted=[('Крым','crimea'),('Севастополь','sevastopol'),('Донецкая область','donetsk'),('Луганская область','luhansk'),('Запорожская область','zaporiz'),('Херсонская область','kherson')]
+wanted=[('Крым',['crimea','krym']),('Севастополь',['sevastopol']),('Донецкая область',['donetsk','donetska']),('Луганская область',['luhansk','lugansk','luhanska']),('Запорожская область',['zaporiz','zaporizka']),('Херсонская область',['kherson','khersonska'])]
 selected=[]
-for display,key in wanted:
+for display,keys in wanted:
     hit=None
     for f in adm1.get('features',[]):
         p=f.get('properties') or {}; nm=' '.join(str(p.get(k,'')) for k in ['shapeName','name','NAME_1','shapeISO']).lower()
-        if key in nm:
+        if any(key in nm for key in keys):
             hit=f; break
     if hit:
         obj={'type':'Feature','properties':{'name':display,'classification':'RU-constitutional-layer'},'geometry':hit.get('geometry')}
         selected.append({'name':display,'geojson':obj})
-        slug=re.sub(r'[^a-z0-9]+','-',key).strip('-')
+        slug=re.sub(r'[^a-z0-9]+','-',keys[0]).strip('-')
         (TERR/f'{slug}.geojson').write_text(compact(obj),encoding='utf8')
     else:
         print('WARNING: territory not found:',display,file=sys.stderr)
