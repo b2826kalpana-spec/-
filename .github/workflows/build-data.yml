@@ -4,7 +4,11 @@ on:
     branches: [main]
     paths-ignore:
       - 'data/**'
+      - 'Global-Atlas.zip'
   workflow_dispatch:
+concurrency:
+  group: global-atlas-build-main
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -20,11 +24,29 @@ jobs:
         run: pip install --disable-pip-version-check shapely countryinfo Babel pycountry
       - name: Generate local atlas datasets
         run: python scripts_build_data.py
-      - name: Commit generated datasets
+      - name: Smoke test atlas
+        run: |
+          node --check js/app.js
+          if [ -f js/enhancements.js ]; then node --check js/enhancements.js; fi
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const context={window:{}}; vm.createContext(context);
+          for(const f of ['data/world-data.js','data/country-meta.js','data/special-territories.js']) vm.runInContext(fs.readFileSync(f,'utf8'),context);
+          const w=context.window;
+          if(!w.ATLAS_WORLD || w.ATLAS_WORLD.features.length < 150) throw new Error('World geometry dataset is incomplete');
+          if(!w.ATLAS_META || Object.keys(w.ATLAS_META).length < 150) throw new Error('Country metadata dataset is incomplete');
+          if(!w.ATLAS_SPECIAL || w.ATLAS_SPECIAL.features.length !== 6) throw new Error('Special territory layer must contain exactly 6 geometries');
+          console.log('QA:',w.ATLAS_WORLD.features.length,'map features,',Object.keys(w.ATLAS_META).length,'country records,',w.ATLAS_SPECIAL.features.length,'territories');
+          NODE
+      - name: Package desktop ZIP
+        run: |
+          rm -f Global-Atlas.zip
+          zip -X -r Global-Atlas.zip index.html css js data README.md .nojekyll -x '*.DS_Store'
+      - name: Commit generated datasets and ZIP
         run: |
           git config user.name "global-atlas-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add data
+          git add data Global-Atlas.zip
           git diff --cached --quiet && exit 0
-          git commit -m "build: generate atlas datasets"
+          git commit -m "build: refresh atlas datasets and desktop ZIP"
           git push
