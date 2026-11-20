@@ -82,9 +82,14 @@ def change_manifest(original: bytes) -> bytes:
         offset += size
     if set(seen) != {"versionCode", "versionName", "minSdkVersion"}:
         raise ValueError(f"Manifest values incomplete: {seen}")
-    if data.count(b"2.0") != 1:
-        raise ValueError("Unexpected version name byte count")
-    data = data.replace(b"2.0", b"3.0")
+    utf8_name = b"2.0"
+    utf16_name = "2.0".encode("utf-16-le")
+    if data.count(utf8_name) == 1:
+        data = data.replace(utf8_name, b"3.0", 1)
+    elif data.count(utf16_name) == 1:
+        data = data.replace(utf16_name, "3.0".encode("utf-16-le"), 1)
+    else:
+        raise ValueError("Unexpected binary XML version name encoding")
     return bytes(data)
 
 with zipfile.ZipFile(SOURCE) as source:
