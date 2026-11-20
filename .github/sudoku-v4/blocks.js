@@ -125,20 +125,27 @@ function placeAt(index){
  selectFirst();preview=null;
  if(result.units.length){
    announce('Отлично! Исчезло: '+result.units.length+' · +'+(result.points+comboBonus)+' очков');
-   showClear(result.cleared);
  }else{
    announce('+'+result.placed+' очков');
  }
  if(!canContinue(state.board,state.tray)){state.over=true;}
  save();paint();
+ if(result.cleared.length)showClear(result.cleared);
  if(state.over)showGameOver();
  return true;
 }
 function showClear(indices){
  clearTimeout(flashTimer);
  var message=document.getElementById('blocksMessage');
- if(message){message.classList.add('blocks-celebrate');}
- flashTimer=setTimeout(function(){if(message)message.classList.remove('blocks-celebrate');},550);
+ if(message)message.classList.add('blocks-celebrate');
+ indices.forEach(function(index){
+  var cell=document.querySelector('#blocksBoard [data-cell="'+index+'"]');
+  if(cell)cell.classList.add('blocks-flash');
+ });
+ flashTimer=setTimeout(function(){
+  if(message)message.classList.remove('blocks-celebrate');
+  document.querySelectorAll('#blocksBoard .blocks-flash').forEach(function(cell){cell.classList.remove('blocks-flash');});
+ },500);
 }
 function announce(text){
  var node=document.getElementById('blocksMessage');
