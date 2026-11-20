@@ -1,0 +1,89 @@
+name: FINKE Sudoku 4.0 Blocks APK
+on:
+  push:
+    paths:
+      - ".github/workflows/finke-sudoku-blocks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build independent Blocks mode without changing classic Sudoku
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/sudoku-v4/patch.py
+          node --check .github/sudoku-v4/blocks.js
+          node .github/sudoku-v4/test-blocks.cjs
+
+      - name: Verify the six existing Sudoku difficulties remain functional
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -p downloads/FINKE-Sudoku-v4.0-blocks-unsigned.apk assets/game.js > /tmp/finke-classic-sudoku-v4.js
+          node --check /tmp/finke-classic-sudoku-v4.js
+          node <<'JS'
+          const assert=require('node:assert/strict');
+          const {LEVELS,generatePuzzle,countSolutions,hashCode}=require('/tmp/finke-classic-sudoku-v4.js');
+          assert.deepEqual(Object.keys(LEVELS),['beginner','easy','medium','hard','expert','master']);
+          let tested=0;
+          for (const level of Object.keys(LEVELS)){
+            for(let i=0;i<4;i++){
+              const generated=generatePuzzle(level,hashCode('v4-regression-'+level+'-'+i));
+              assert.equal(generated.puzzle.length,81);
+              assert.equal(countSolutions(generated.puzzle.slice(),2),1);
+              tested++;
+            }
+          }
+          console.log('PASS: preserved six classic Sudoku modes,',tested,'valid puzzles');
+          JS
+
+      - name: Create installable signed APK for Android 5.0+
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n1)"
+          test -x "$BT/apksigner" && test -x "$BT/zipalign"
+          IN="downloads/FINKE-Sudoku-v4.0-blocks-unsigned.apk"
+          OUT="downloads/FINKE-Sudoku-v4.0-blocks.apk"
+          "$BT/zipalign" -f -p 4 "$IN" /tmp/finke-sudoku-v4-aligned.apk
+          keytool -genkeypair -keystore /tmp/finke-sudoku-v4.keystore -storepass android -keypass android -alias finke -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=FINKE Sudoku 4,O=FINKE" >/dev/null 2>&1
+          "$BT/apksigner" sign --min-sdk-version 21 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --ks /tmp/finke-sudoku-v4.keystore --ks-key-alias finke --ks-pass pass:android --key-pass pass:android --out "$OUT" /tmp/finke-sudoku-v4-aligned.apk
+          "$BT/apksigner" verify --min-sdk-version 21 --verbose "$OUT"
+          "$BT/zipalign" -c -p 4 "$OUT"
+          python3 - <<'PY'
+          import zipfile,re,hashlib,os
+          p='downloads/FINKE-Sudoku-v4.0-blocks.apk'
+          with zipfile.ZipFile(p) as apk:
+              assert apk.testzip() is None
+              entries=set(apk.namelist())
+              assert {'AndroidManifest.xml','classes.dex','assets/game.js','assets/index.html','assets/blocks.js','assets/blocks.css','assets/luxury.css'}.issubset(entries)
+              html=apk.read('assets/index.html').decode('utf-8')
+              assert len(re.findall(r'data-level="[^"]+"',html))==6
+              assert html.count('id="blocksBoard"')==1
+              assert 'blocks.js' in html
+              assert 'blocks.css' in html
+          print('VERIFIED FINKE Sudoku 4.0:',os.path.getsize(p),'bytes; SHA-256',hashlib.sha256(open(p,'rb').read()).hexdigest())
+          PY
+
+      - name: Publish installable APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add downloads/FINKE-Sudoku-v4.0-blocks.apk
+          git commit -m "Publish FINKE Sudoku 4.0 Blocks and six Sudoku difficulties"
+          for n in 1 2 3 4; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
